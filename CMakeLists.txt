@@ -46,7 +46,13 @@ if (BUILD_TARGET STREQUAL "Desktop")
 endif()
 
 if (BUILD_TARGET STREQUAL "Desktop")
-  find_package(OpenGL REQUIRED)
+  if (USE_EGL STREQUAL ON)
+    find_package(OpenGL REQUIRED)
+  else
+    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
+    find_package(OpenGLES REQUIRED)
+    find_package(EGL REQUIRED)
+  endif()
 endif()
 
 if (APPLE OR BUILD_TARGET STREQUAL "Web")
