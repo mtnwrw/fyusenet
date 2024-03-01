@@ -46,9 +46,9 @@ if (BUILD_TARGET STREQUAL "Desktop")
 endif()
 
 if (BUILD_TARGET STREQUAL "Desktop")
-  if (USE_EGL STREQUAL ON)
+  if (USE_EGL STREQUAL OFF)
     find_package(OpenGL REQUIRED)
-  else
+  else()
     set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
     find_package(OpenGLES REQUIRED)
     find_package(EGL REQUIRED)
