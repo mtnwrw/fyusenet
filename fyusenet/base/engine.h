@@ -98,6 +98,27 @@ class Engine : public fyusenet::GfxContextTracker {
     void cleanup(const std::function<void()> & broom);
 
     /**
+     * @brief Obtain timings on a per-layer basis
+     *
+     * @return Map which maps the layer index to a cumulative microsecond execution time (on the
+     *         CPU)
+     *
+     *  This function returns a map that maps a layer index to a cumulative timings, taken in
+     *  microseconds, when timings are enabled.
+     *
+     * @note Those timings are not necessarily indicative of the actual device (e.g. GPU) timings
+     *       and should be taken with a couple of spoons of salt.
+     *
+     * @warning This function is not thread-safe, and it should not be run concurrently to the
+     *          forward() method
+     *
+     * @see enableTimings(), disableTimings(), resetTimings()
+     */
+    const std::unordered_map<int, uint32_t> & getTimings() const {
+        return timingData_;
+    }
+
+    /**
      * @brief Retrieve the last sequence number that was issued
      *
      * @return Last issued sequence number

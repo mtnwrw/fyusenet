@@ -197,6 +197,8 @@ void Engine::disableIntermediateOutput() {
  * commands.
  *
  * @warning This function is not thread-safe, do not call it in parallel to forwardLayers()
+ *
+ * @see getTimings(), resetTimings(), disableTimings()
  */
 void Engine::enableTimings() {
     timings_ = true;
