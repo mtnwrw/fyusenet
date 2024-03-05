@@ -123,7 +123,7 @@ void DeepConvLayerNxN::forward(uint64_t sequenceNo, StateToken * state) {
     std::lock_guard<std::recursive_mutex> lck(processingLock_);
     if (!valid_) THROW_EXCEPTION_ARGS(FynException,"Trying to invoke forward() on invalid layer");
 #ifdef DEBUG
-    int err = glGetError();
+    GLenum err = glGetError();
     if (err != GL_NO_ERROR) FNLOGD("HINT: glerror on render entry: 0x%x (%s:%d)[%s]",err,__FILE__,__LINE__,getName().c_str());
 #endif    
     if (outputChanged_) updateFBOs();
@@ -171,16 +171,18 @@ void DeepConvLayerNxN::forward(uint64_t sequenceNo, StateToken * state) {
  */
 void DeepConvLayerNxN::partialRender() {
     int tris = tiler_->numOutputTiles();
+    int instances = tiler_->numInputTiles() * kernel_;
     for (int part=0; part <= numSplits_; part++) {
         shaders_[part]->bind(shaderStates_.at(part).get());
         glDrawElements(GL_TRIANGLES, tris*6, GL_UNSIGNED_SHORT, (const GLvoid *)0);
-        shaders_[part]->unbind(true);
+        shaders_[part]->unbind((instances > 1) || (part < numSplits_));
     }
-    int instances = tiler_->numInputTiles() * kernel_ * (numSplits_ + 1);
-    for (int part=0; part <= numSplits_; part++) {
-        noBiasShaders_[part]->bind(noBiasShaderStates_.at(part).get());
-        glDrawElementsInstanced(GL_TRIANGLES, tris*6, GL_UNSIGNED_SHORT, (const GLvoid *)0, instances-1);
-        noBiasShaders_[part]->unbind((part != numSplits_));
+    if (instances > 1) {
+        for (int part = 0; part <= numSplits_; part++) {
+            noBiasShaders_[part]->bind(noBiasShaderStates_.at(part).get());
+            glDrawElementsInstanced(GL_TRIANGLES, tris * 6, GL_UNSIGNED_SHORT, (const GLvoid *) 0, instances - 1);
+            noBiasShaders_[part]->unbind((part != numSplits_));
+        }
     }
 }
 
@@ -195,7 +197,7 @@ void DeepConvLayerNxN::nonPartialRender() {
     int tris = tiler_->numOutputTiles();
     shaders_[0]->bind(shaderStates_.at(0).get());
     glDrawElements(GL_TRIANGLES, tris*6, GL_UNSIGNED_SHORT, (const GLvoid *)0);
-    shaders_[0]->unbind((instances > 1) ? true : false);
+    shaders_[0]->unbind((instances > 1));
     if (instances > 1)  {
         noBiasShaders_.at(0)->bind(noBiasShaderStates_.at(0).get());
         glDrawElementsInstanced(GL_TRIANGLES, tris*6, GL_UNSIGNED_SHORT, (const GLvoid *)0, instances-1);
@@ -204,132 +206,6 @@ void DeepConvLayerNxN::nonPartialRender() {
 }
 
 
-/**
- * @copydoc DeepConvLayerBase::setupNetworkPolygons()
- */
-void DeepConvLayerNxN::setupNetworkPolygons(VAO *vao) {
-    if (!partialConv_) DeepConvLayerBase::setupNetworkPolygons(vao);
-    else {
-        int offset0=0;
-        float * attrs0 = new float[tiler_->numOutputTiles() * 4 * 4];
-        std::vector<DeepTiler::Tile> tiles = tiler_->createOutputTiles();
-        DeepTiler::Tile deftex = tiler_->getDefaultTextureExtents();
-        //---------------------------------------------------------------------------
-        // VBO parts, first the default output tiling
-        //---------------------------------------------------------------------------
-        for (DeepTiler::Tile tile : tiles) {
-            tile.toFloatVec(attrs0, offset0, 4);
-            deftex.toFloatVec(attrs0, offset0+2, 4);
-            offset0 += 4*4;
-        }
-        vertexBuffer_ = new VBO(context_);
-        vao->enableArray(0);
-        vertexBuffer_->setBufferData(attrs0,tiler_->numOutputTiles()*4*4*sizeof(float),GL_STATIC_DRAW);
-        vertexBuffer_->bind();
-        vao->setVertexAttributeBuffer(0,4,GL_FLOAT,GL_FALSE,0,0);
-        delete [] attrs0;
-        //---------------------------------------------------------------------------
-        // Now indices for the bias texture and the row indices for the convolution
-        // coeffs (y-part of the convolution)...
-        //---------------------------------------------------------------------------
-        int * attrs1 = new int[tiler_->numOutputTiles() * 2 * 4];
-        memset(attrs1, 0, tiler_->numOutputTiles() * 2 * 4 * sizeof(int));
-        for (int i=0; i < tiler_->numOutputTiles(); i++) {
-            for (int j=0; j < 4; j++) {
-                attrs1[(i*4+j) * 2 + 0] = i * kernel_;
-                attrs1[(i*4+j) * 2 + 1] = i;          // to be used for indexing bias texture
-            }
-        }
-        textureOffsets_ = new VBO(context_);
-        vao->enableArray(1);
-        textureOffsets_->setBufferData(attrs1,tiler_->numOutputTiles()*2*4*sizeof(int),GL_STATIC_DRAW);
-        textureOffsets_->bind();
-        vao->setVertexAttributeBuffer(1, 2, GL_INT, 0, 0);
-        delete [] attrs1;
-        //---------------------------------------------------------------------------
-        // VBO for optional residual input (to be added to the output after BN/ReLU)
-        //---------------------------------------------------------------------------
-        if (flags_ & LayerFlags::RESIDUAL_INPUT) {
-            assert(residualTiler_->numOutputTiles() == residualTiler_->numInputTiles());
-            float * attrs2 = new float[residualTiler_->numInputTiles()*2*4];
-            std::vector<DeepTiler::Tile> rtiles = residualTiler_->createInputTiles(0,0,0);
-            int offset2=0;
-            for (DeepTiler::Tile tile : rtiles) {
-                tile.toFloatVec(attrs2,offset2,2);
-                offset2 += 2*4;
-            }
-            residualBuffer_ = new VBO(context_);
-            vao->enableArray(2);
-            residualBuffer_->setBufferData(attrs2,residualTiler_->numInputTiles()*2*4*sizeof(float),GL_STATIC_DRAW);
-            residualBuffer_->bind();
-            vao->setVertexAttributeBuffer(2,2,GL_FLOAT,GL_FALSE,0,0);
-            delete [] attrs2;
-        }
-        //---------------------------------------------------------------------------
-        // IBO part
-        //---------------------------------------------------------------------------
-        GLshort * indices = new GLshort[tiler_->numOutputTiles()*6];
-        indexBuffer_ = new IBO(context_);
-        for (int i=0; i < tiler_->numOutputTiles(); i++) {
-            int offset = i*4;
-            indices[i*6+0] = offset + 0;
-            indices[i*6+1] = offset + 1;
-            indices[i*6+2] = offset + 2;
-            indices[i*6+3] = offset + 0;
-            indices[i*6+4] = offset + 2;
-            indices[i*6+5] = offset + 3;
-        }
-        indexBuffer_->setBufferData(indices,6*tiler_->numOutputTiles()*sizeof(GLshort),GL_STATIC_DRAW);
-        indexBuffer_->bind();
-        delete [] indices;
-        //---------------------------------------------------------------------------
-        // Dependent texture to perform input lookup in the vertex shader. Takes care
-        // of accumulating all input channels to a set of output channels and also
-        // shifts the conv-window along the y direction. For each input tile one column
-        // in the texture is generated with a height equivalent to the (vertical) kernel
-        // size multiplied by the number of horizontal parts. Each entry in that
-        // texture contains a 2D displacement w.r.t. the input texture coordinate
-        // which takes care of the vertical convolution direction as well as the
-        // horizontal split in case of larger kernel sizes...
-        //---------------------------------------------------------------------------
-        glGenTextures(1,&inputCoordTexture_);
-        glBindTexture(GL_TEXTURE_2D,inputCoordTexture_);
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
-        float * texdata = new float[tiler_->numInputTiles() * 4 * (numSplits_ + 1) * kernel_];
-        DeepTiler::Tile defex = tiler_->getDefaultTextureExtents();
-        if ((kernel_ & 1) == 0) {
-            THROW_EXCEPTION_ARGS(FynException,"Unsupported kernel size %d", kernel_);
-        } else {
-            int kx = -((kernel_ - 1) / 2);
-            int offset = 0;
-            for (int vk = -((kernel_ - 1) / 2) ; vk <= ((kernel_ - 1) / 2); vk++) {            // currently only odd window sizes are supported
-                for (int hk = kx, split=0; split <= numSplits_; split++, hk += horizSplits_[split-1]) {
-                    int ihk = 0;
-                    if (horizSplits_.at(split) & 1) {
-                        // odd
-                        int kxstart = -((horizSplits_.at(split)-1) / 2);
-                        ihk = hk - kxstart;
-                    } else {
-                        // even
-                        int kxstart = -(horizSplits_.at(split) / 2);
-                        ihk = hk - kxstart;
-                    }
-                    std::vector<DeepTiler::Tile> tiles = tiler_->createInputTiles(ihk, vk*dilation_[1]);
-                    for (DeepTiler::Tile tile : tiles) {
-                        tile.toDisplacement(defex, texdata, offset);
-                        tile.lowClamp(texdata, offset+2);
-                        offset += 4;
-                    }
-                }
-            }
-        }
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, tiler_->numInputTiles(), (numSplits_+1) * kernel_, 0, GL_RGBA, GL_FLOAT, texdata);
-        delete [] texdata;
-    }
-}
 
 /**
  * @copydoc DeepConvLayerBase::compileConvolutionShaders
@@ -357,18 +233,23 @@ void DeepConvLayerNxN::compileConvolutionShaders(const char *preproc) {
         static const char * oddfrag = "shaders/deep/deepconvNxN_partial_odd.frag";
         static const char * evenfrag = "shaders/deep/deepconvNxN_partial_even.frag";
         char extra[256];
-        int horizoffset = 0;
         int kerneloffset = 0;
-        for (int part=0; part <= numSplits_; part++) {
-            bool odd = ((horizSplits_.at(part) & 1) == 1);
-            int varyings = horizSplits_.at(part) * ((halfSupport_) ? 2 : 4);
-            snprintf(extra, sizeof(extra), "#define COEFF_VARYINGS %d\n#define NET_KERNEL %d\n", varyings, horizSplits_.at(part));
-            appendOffsetDefs(extra, horizSplits_.at(part), sizeof(extra) - strlen(extra) -1);
+        // NOTE (mw) we assume odd kernels for now
+        for (int part=0, offset=-(kernel_-1)/2; part <= numSplits_; part++) {
+            int subkern = horizSplits_.at(part);
+            bool odd = ((subkern & 1) == 1);
+            int subext = (odd) ? (subkern-1)/2 : subkern/2;
+            int horizoffset = offset+subext;
+            int varyings = subkern * ((halfSupport_) ? 2 : 4);
+            snprintf(extra, sizeof(extra), "#define COEFF_VARYINGS %d\n#define NET_KERNEL %d\n", varyings, subkern);
+            if (part > 0) strncat(extra, "#define NO_BIAS\n", sizeof(extra) - strlen(extra) - 1);   // NOTE (mw) we disable bias if not in part 0
+            appendOffsetDefs(extra, subkern, sizeof(extra) - strlen(extra) -1);
             strncpy(finalpreproc, preproc, sizeof(finalpreproc)-1);
-            // NOTE (mw) only add residual on the first pass (the shader preprocessing masks out the residual flag for the deepconv layers)
-            if (flags_ & LayerFlags::RESIDUAL_INPUT) strncat(finalpreproc,"#define USE_RESIDUAL\n", sizeof(finalpreproc) - strlen(finalpreproc) - 1);
+            // NOTE (mw) only add residual on the first pass and part 0 (the shader preprocessing masks out the residual flag for the deepconv layers)
+            if ((flags_ & LayerFlags::RESIDUAL_INPUT) && (part == 0)) {
+                strncat(finalpreproc,"#define USE_RESIDUAL\n", sizeof(finalpreproc) - strlen(finalpreproc) - 1);
+            }
             strncat(finalpreproc, extra, sizeof(finalpreproc) - strlen(finalpreproc) - 1);
-
             programptr prog = compileShaderPair("shaders/deep/deepconvNxN_partial.vert",
                                                 (odd) ? oddfrag : evenfrag, finalpreproc, typeid(this));
             shaderPostprocessing(prog);
@@ -383,8 +264,8 @@ void DeepConvLayerNxN::compileConvolutionShaders(const char *preproc) {
             shaderPostprocessing(prog);
             noBiasShaders_.push_back(prog);
             noBiasShaderStates_.push_back(initShader(prog, horizoffset, kerneloffset, kernel_));
-            horizoffset++;
-            kerneloffset += horizSplits_.at(part);
+            kerneloffset += subkern;
+            offset += subkern;
         }
     }
 }
@@ -416,8 +297,8 @@ void DeepConvLayerNxN::appendOffsetDefs(char *string, int kernel, size_t maxChar
  * @brief Create shader state for supplied shader
  *
  * @param shader Shader to create a uniform state object for
- * @param horizOffset Horizontal offset within the convolution kernel
- * @param kernelOffset Vertical offset within the convolution kernel
+ * @param horizOffset Horizontal offset within the input tensor
+ * @param kernelOffset Horizontal offset within the convolution kernel
  * @param kernelY Window size of convolution kernel (vertical part)
  *
  * @return Shared pointer to UniformState object that maps values to the uniforms of a shader
@@ -435,8 +316,9 @@ unistateptr DeepConvLayerNxN::initShader(programptr shader, int horizOffset, int
     if (largeDilation_) {
         state->setUniformValue("dilationStep", tiler_->getTextureStepX() * (float)dilation_[0]);
     }
-    state->setUniformValue("instancesPerTile", kernelY);
     state->setUniformValue("horizOffset", horizOffset, true);
+    state->setUniformValue("textureStep", tiler_->getTextureStepX(), true);
+    state->setUniformValue("instancesPerTile", kernelY);
     state->setUniformValue("numParts", numSplits_+1, true);
     state->setUniformValue("kernelOffset", kernelOffset, true);
     return state;

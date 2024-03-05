@@ -24,10 +24,7 @@
 #include "deepconvlayerbase.h"
 
 //------------------------------------- Public Declarations ----------------------------------------
-namespace fyusion {
-namespace fyusenet {
-namespace gpu {
-namespace deep {
+namespace fyusion::fyusenet::gpu::deep {
 
 /**
  * @brief GEMM layer that implements GEMM as 1x1 convolutions
@@ -69,10 +66,7 @@ class DeepGEMMLayer : public DeepConvLayerBase {
     bool usePoints_ = false;                    //!< Indicator if point-based rendering should be used (for 1x1 sized "tiles")
 };
 
-} // deep namespace
-} // gpu namespace
-} // fyusenet namespace
-} // fyusion namespace
+} // fyusion::fyusenet::gpu::deep namespace
 
 
 // vim: set expandtab ts=4 sw=4:

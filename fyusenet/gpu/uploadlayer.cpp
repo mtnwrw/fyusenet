@@ -252,7 +252,7 @@ std::vector<BufferSpec> UploadLayer::getRequiredOutputBuffers() const {
                 result.push_back(BufferSpec(channelidx++, 0,
                                             width_ + 2 * inputPadding_, height_ + 2 * inputPadding_,
                                             TEXTURE_IFORMAT_4, TEXTURE_FORMAT_4, TEXTURE_TYPE_DEFAULT,
-                                            BufferSpec::GPU_DEST).async(async_).multi((async_) ? ASYNC_BUFFERS : 1));
+                                            BufferSpec::GPU_DEST, std::min(rem, PIXEL_PACKING)).async(async_).multi((async_) ? ASYNC_BUFFERS : 1));
                 rem -= LayerBase::PIXEL_PACKING;
             }
         }

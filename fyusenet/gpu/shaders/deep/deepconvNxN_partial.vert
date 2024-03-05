@@ -43,6 +43,7 @@ uniform int instancesPerTile;
 uniform int horizOffset;
 uniform int kernelOffset;
 uniform int numParts;
+uniform float textureStep;
 
 void main(void) {
   gl_Position = vec4(attributes0.x, attributes0.y, 0.0, 1.0);
@@ -55,7 +56,8 @@ void main(void) {
   // Displace texture coordinates of input tile for kernel window shift (horiz + vert)
   int intile = instance / instancesPerTile;
   int vkernelidx = instance % instancesPerTile;
-  texCoord.xy += texelFetch(inputDisplacements, ivec2(intile, numParts * vkernelidx + horizOffset),0).rg;
+  texCoord.xy += texelFetch(inputDisplacements, ivec2(intile, vkernelidx),0).rg;
+  texCoord.x += float(horizOffset) * textureStep;
 #ifdef NO_HALF
   int inchan = 4 * intile * KERNEL + kernelOffset * 4;
 #else

@@ -115,7 +115,7 @@ fyusion::fyusenet::CompiledLayers StyleNet3x3::buildLayers() {
 
     if (download_) {
         auto * down = new gpu::UpDownLayerBuilder(gpu::UpDownLayerBuilder::DOWNLOAD, "download");
-        down->shape(4, height_, width_, 4).context(context()).number(layer_ids::DOWNLOAD);
+        down->shape(3, height_, width_, 3).context(context()).number(layer_ids::DOWNLOAD);
 #ifdef FYUSENET_MULTITHREADING
         if (async_) down->async().callback(std::bind(&StyleNet3x3::internalDLCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 #endif

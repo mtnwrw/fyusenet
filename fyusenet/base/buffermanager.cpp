@@ -483,6 +483,8 @@ void BufferManager::connectGPULayers(gpu::GPULayerBase * outLayer, gpu::GPULayer
  * single tensor can be represented by multiple buffers (for example when textures are used as
  * buffer realizations), there is no 1:1 correspondence between output ports and input ports,
  * hence the requirement to return a list of matches.
+ *
+ * It also performs slight adjustments to the texture formats (if required).
  */
 std::vector<std::pair<BufferSpec,BufferSpec>> BufferManager::checkIOMatch(LayerBase *inputLayer, const std::vector<BufferSpec>& inputs,const std::vector<BufferSpec>& outputs, int inputPort) {
     std::vector<std::pair<BufferSpec,BufferSpec>> result;
@@ -490,7 +492,7 @@ std::vector<std::pair<BufferSpec,BufferSpec>> BufferManager::checkIOMatch(LayerB
         return result;
     }
     for (auto it=inputs.begin(); it != inputs.end(); ++it) {
-        BufferSpec inspec = *it;
+        const BufferSpec& inspec = *it;
         if (inspec.port_ != inputPort) continue;
         // TODO (mw) add a more thorough input-type check
         for (auto ot=outputs.begin(); ot != outputs.end(); ++ot) {
@@ -502,7 +504,15 @@ std::vector<std::pair<BufferSpec,BufferSpec>> BufferManager::checkIOMatch(LayerB
             bool idxmatch = (inspec.channelIndex_ == outspec.channelIndex_);
             if (devmatch && idxmatch && (outspec.width_ == inspec.width_) && (outspec.height_ == inspec.height_) && intermatch) {
                 if ((outspec.device_ == BufferSpec::csdevice::COMP_STOR_CPU) && (outspec.channels_ != inspec.channels_)) continue;
-                if ((outspec.usage_ == BufferSpec::OES_DEST) || (outspec.internalFormat_ == inspec.internalFormat_)) {
+                if ((outspec.internalFormat_ != inspec.internalFormat_) && (outspec.usage_ != BufferSpec::OES_DEST) && (outspec.dataOrder_ == BufferSpec::order::GPU_SHALLOW)) {
+                    if (BufferSpec::isIntegral(inspec.internalFormat_) == BufferSpec::isIntegral(outspec.internalFormat_)) {
+                        // output dominates because some GL(ES) implementations cannot write to RGB textures
+                        BufferSpec buf = *it;
+                        buf.internalFormat_ = outspec.internalFormat_;
+                        buf.format_ = outspec.format_;
+                        result.emplace_back(buf, outspec);
+                    }
+                } else {
                     result.emplace_back(inspec, outspec);
                 }
             }

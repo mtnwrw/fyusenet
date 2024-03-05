@@ -11,7 +11,7 @@ endif()
 #----------------------------------------------------------------------------------
 
 if (NOT WIN32)
-  set(DEFAULT_LIBS stdc++ pthread m)
+  set(DEFAULT_LIBS stdc++ pthread m atomic)
 else()
   set(DEFAULT_LIBS "")
 endif()

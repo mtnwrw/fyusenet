@@ -83,7 +83,7 @@ endif()
 if (ANDROID)
   set(DEFAULT_LIBS ${CXX_LIBS} gtest log)
 else()
-  set(DEFAULT_LIBS ${CXX_LIBS} gtest)
+  set(DEFAULT_LIBS ${CXX_LIBS} gtest atomic)
 endif()
 
 #----------------------------------------------------------------------------------

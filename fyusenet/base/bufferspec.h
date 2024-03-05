@@ -310,6 +310,29 @@ class BufferSpec {
         return *this;
     }
 
+
+    /**
+     * @brief Check if a sized format is an integral (integer) datatype 
+     * 
+     * @retval true sized format is an integral datatype
+     * @retval false otherwise
+     *
+     * Integral datatypes on the GPU require to be read as integers in the shaders, whereas non-integral
+     * datatypes are read as floating-point values in the shaders.
+     */
+    static bool isIntegral(sizedformat fmt) {
+        switch (fmt) {
+            case sizedformat::SINGLE32UI:
+            case sizedformat::RG32UI:
+            case sizedformat::RGB32UI:
+            case sizedformat::RGBA32UI:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+
     /**
      * @brief Get sized format by number of channels and data type
      *
@@ -324,11 +347,10 @@ class BufferSpec {
     static std::pair<sizedformat, genericformat> formatByChannels(int channels, dtype type) {
         using sz = sizedformat;
         using gn = genericformat;
-        // NOTE (mw) we skip RGB texture formats due to OpenGL ES limitations
-        static sizedformat flt32sfmt[4] = {sz::SINGLE32F, sz::RG32F, sz::RGBA32F, sz::RGBA32F};
-        static sizedformat flt16sfmt[4] = {sz::SINGLE16F, sz::RG16F, sz::RGBA16F, sz::RGBA16F};
-        static sizedformat uintsfmt[4] = {sz::SINGLE32UI, sz::RG32UI, sz::RGBA32UI, sz::RGBA32UI};
-        static sizedformat bytesfmt[4] = {sz::RED8, sz::RG8, sz::RGBA8, sz::RGBA8};
+        static sizedformat flt32sfmt[4] = {sz::SINGLE32F, sz::RG32F, sz::RGB32F, sz::RGBA32F};
+        static sizedformat flt16sfmt[4] = {sz::SINGLE16F, sz::RG16F, sz::RGB16F, sz::RGBA16F};
+        static sizedformat uintsfmt[4] = {sz::SINGLE32UI, sz::RG32UI, sz::RGB32UI, sz::RGBA32UI};
+        static sizedformat bytesfmt[4] = {sz::RED8, sz::RG8, sz::RGB8, sz::RGBA8};
         static genericformat gfmt[4] = {gn::RED, gn::RG, gn::RGB, gn::RGBA};
         static genericformat gifmt[4] = {gn::RED_INT, gn::RG_INT, gn::RGB_INT, gn::RGBA_INT};
         assert((channels > 0) && (channels <= 4));

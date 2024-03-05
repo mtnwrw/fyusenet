@@ -102,7 +102,7 @@ std::vector<BufferSpec> FunctionLayer::getRequiredInputBuffers() const {
                 result.emplace_back(channel++, 0,
                                     width_ + 2 * inputPadding_, height_ + 2 * inputPadding_,
                                     TEXTURE_IFORMAT_4, TEXTURE_FORMAT_4, TEXTURE_TYPE_DEFAULT,
-                                    BufferSpec::FUNCTION_SOURCE);
+                                    BufferSpec::FUNCTION_SOURCE, std::min(rem, PIXEL_PACKING));
                 rem -= PIXEL_PACKING;
             }
         }
@@ -128,7 +128,7 @@ std::vector<BufferSpec> FunctionLayer::getRequiredOutputBuffers() const {
             result.emplace_back(channel++, 0,
                                 viewport_[0], viewport_[1],
                                 TEXTURE_IFORMAT_4, TEXTURE_FORMAT_4, TEXTURE_TYPE_DEFAULT,
-                                BufferSpec::FUNCTION_DEST);
+                                BufferSpec::FUNCTION_DEST, std::min(PIXEL_PACKING, rem));
             rem -= PIXEL_PACKING;
         }
     }

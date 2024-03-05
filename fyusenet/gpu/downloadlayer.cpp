@@ -75,7 +75,7 @@ std::vector<BufferSpec> DownloadLayer::getRequiredInputBuffers() const {
                                                  BufferSpec::genericformat::RGB, BufferSpec::genericformat::RGBA};
     std::vector<BufferSpec> result;
     if (maxSequence_ > 0) {
-        // TODO (mw) support other integral data types here
+        // TODO (mw) support other integral data types here (this part is only for downloading tokens)
         auto genfmt = (isInt(dataType_)) ? genint[chanPacking_ - 1] : genfp[chanPacking_ - 1];
         auto spec = BufferSpec(0, 0, width_, maxSequence_, bufferFormat(dataType_, chanPacking_), genfmt, dataType_, BufferSpec::GPU_DEST,
                                inputChannels_).device(BufferSpec::csdevice::COMP_STOR_GPU).dataOrder(BufferSpec::order::GPU_SEQUENCE);
@@ -87,7 +87,7 @@ std::vector<BufferSpec> DownloadLayer::getRequiredInputBuffers() const {
             result.emplace_back(channel++, 0,
                                 width_ + 2 * inputPadding_, height_ + 2 * inputPadding_,
                                 TEXTURE_IFORMAT_4, TEXTURE_FORMAT_4, TEXTURE_TYPE_DEFAULT,
-                                BufferSpec::FUNCTION_SOURCE);
+                                BufferSpec::FUNCTION_SOURCE, std::min(PIXEL_PACKING, rem));
             rem -= PIXEL_PACKING;
         }
     }
@@ -102,7 +102,7 @@ std::vector<BufferSpec> DownloadLayer::getRequiredOutputBuffers() const {
     std::vector<BufferSpec> result;
     if (maxSequence_ > 0) {
         bool isint = isInt(dataType_);
-        // TODO (mw) support other integral data types here
+        // TODO (mw) support other integral data types here (this part is only for downloading tokens)
         result.push_back(BufferSpec(0, 0, width_ * chanPacking_, maxSequence_, (isint) ? BufferSpec::sizedformat::SINGLE32UI : BufferSpec::sizedformat::SINGLE32F,
                                     (isint) ? BufferSpec::genericformat::SINGLE_INT : BufferSpec::genericformat::SINGLE,
                                     dataType_, BufferSpec::CPU_DEST, 1)
@@ -110,11 +110,13 @@ std::vector<BufferSpec> DownloadLayer::getRequiredOutputBuffers() const {
                                    .dataOrder(BufferSpec::order::GPU_SEQUENCE));
 
     } else {
+        // NOTE (mw) many GL(ES) implementations cannot write to RGB textures, so we reserve enough
+        // space to use RGBA textures as source(s) instead
         result.push_back(BufferSpec(0, 0,
                                     width_ + 2 * outputPadding_, height_ + 2 * outputPadding_,
                                     BufferSpec::sizedformat::SINGLE32F, BufferSpec::genericformat::SINGLE, BufferSpec::dtype::FLOAT,
                                     BufferSpec::CPU_DEST,
-                                    outputChannels_)
+                                    outputChannels_ + PIXEL_PACKING - (outputChannels_ % PIXEL_PACKING))
                                    .device(BufferSpec::csdevice::COMP_STOR_CPU)
                                    .dataOrder(BufferSpec::order::GPU_SHALLOW));
     }

@@ -217,12 +217,12 @@ std::vector<BufferSpec> ConvLayerBase::getRequiredInputBuffers() const {
         auto format = BufferSpec::formatByChannels(inputChannels_, TEXTURE_TYPE_DEFAULT);
         result.emplace_back(channel, 0, width_ + 2*inputPadding_, height_ + 2*inputPadding_,
                             format.first, format.second, TEXTURE_TYPE_DEFAULT,
-                            BufferSpec::FUNCTION_SOURCE);
+                            BufferSpec::FUNCTION_SOURCE, rem);
     } else {
         while (rem > 0) {
             result.emplace_back(channel++, 0, width_ + 2*inputPadding_, height_ + 2*inputPadding_,
                                 TEXTURE_IFORMAT_4, TEXTURE_FORMAT_4, TEXTURE_TYPE_DEFAULT,
-                                BufferSpec::FUNCTION_SOURCE);
+                                BufferSpec::FUNCTION_SOURCE, std::min(PIXEL_PACKING, rem));
             rem -= PIXEL_PACKING;
         }
     }
@@ -232,7 +232,7 @@ std::vector<BufferSpec> ConvLayerBase::getRequiredInputBuffers() const {
         while (rem > 0) {
             result.emplace_back(channel++, 1, residualViewport_[0], residualViewport_[1],
                                 TEXTURE_IFORMAT_4, TEXTURE_FORMAT_4, TEXTURE_TYPE_DEFAULT,
-                                BufferSpec::RESIDUAL_SOURCE);
+                                BufferSpec::RESIDUAL_SOURCE, std::min(PIXEL_PACKING, rem));
             rem -= PIXEL_PACKING;
         }
     }
@@ -250,7 +250,7 @@ std::vector<BufferSpec> ConvLayerBase::getRequiredOutputBuffers() const {
     while (rem > 0) {
         result.emplace_back(channel++, 0, viewport_[0], viewport_[1],
                             TEXTURE_IFORMAT_4, TEXTURE_FORMAT_4, TEXTURE_TYPE_DEFAULT,
-                            BufferSpec::FUNCTION_DEST);
+                            BufferSpec::FUNCTION_DEST, std::min(PIXEL_PACKING, rem));
         rem -= PIXEL_PACKING;
     }
     return result;

@@ -52,8 +52,9 @@ static float * readImage(const std::string& imageFile, int & width, int & height
 static void writeImage(const float *rgba, int width, int height, const std::string& fileName) {
     assert(rgba);
     uint8_t *rgb = new uint8_t[width*height*3];
-    for (int y=0; y<height; y++) {
-        for (int x=0; x<width; x++) {
+    // FIXME (mw) this code silently assumes that when we download 3-channel data it will always be extended to 4-channel data
+    for (int y=0; y < height; y++) {
+        for (int x=0; x < width; x++) {
             rgb[(y*width+x)*3] = (uint8_t)(rgba[(y*width+x)*4]*255.f);
             rgb[(y*width+x)*3+1] = (uint8_t)(rgba[(y*width+x)*4+1]*255.f);
             rgb[(y*width+x)*3+2] = (uint8_t)(rgba[(y*width+x)*4+2]*255.f);

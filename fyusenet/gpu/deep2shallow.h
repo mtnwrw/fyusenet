@@ -52,8 +52,8 @@ class Deep2ShallowLayer : public deep::DeepLayerBase {
     void setup() override;
     void cleanup() override;
     void forward(uint64_t sequence, StateToken * state) override;
-    std::vector<BufferSpec> getRequiredInputBuffers() const override;
-    std::vector<BufferSpec> getRequiredOutputBuffers() const override;
+    [[nodiscard]] std::vector<BufferSpec> getRequiredInputBuffers() const override;
+    [[nodiscard]] std::vector<BufferSpec> getRequiredOutputBuffers() const override;
  protected:
     // ------------------------------------------------------------------------
     // Non-public methods

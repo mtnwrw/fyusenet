@@ -264,7 +264,7 @@ bool DeepConvLayerBase::isApplicable() const {
  *
  * As opposed to the shallow tensor handling, it is not efficient to use multiple render passes
  * with changing uniforms for the convolution (at least not in my tests on mobile GPUs). Instead,
- * a different path is chosen, which packs the convolution coefficients into textures and use a
+ * a different path is chosen, which packs the convolution coefficients into textures and uses a
  * few tricks - when available.
  *
  * The texture format for the convolution coefficients is as follows:
@@ -274,7 +274,7 @@ bool DeepConvLayerBase::isApplicable() const {
  *   - Texture \e width corresponds to the number of input channels multiplied by the convolution
  *     kernel size, padded for even size (there is an additional tweak, see below for details)
  *   - Each pixel in the texture corresponds to 4 (or 8) convolution coefficients that are laid
- *     out as as part of 4x4 matrices
+ *     out as parts of 4x4 matrices
  *   - Four (4) consecutive pixels in a row represent a 4x4 matrix with the input channels as their
  *     column space and the output channels as their row space
  *   - Depending on the convolution kernel size, \e k neighboring 4x4 matrices horizontally
@@ -569,10 +569,6 @@ size_t DeepConvLayerBase::shaderPreprocessing(char *preproc, size_t maxChars) {
         strncat(preproc, "#define PRE_G71\n", mc);
         mc = (ssize_t)maxChars - (ssize_t)strlen(preproc);  // ouch
     }
-#ifdef HIGH_PRECISION
-    strncat(preproc, "#define HIGH_PRECISION\n", mc);
-    mc = maxChars-strlen(preproc);
-#endif
     snprintf(extra, sizeof(extra), "#define KERNEL %d\n",kernel_);
     strncat(preproc, extra, mc);
     mc -= (ssize_t)strlen(extra);
@@ -715,9 +711,9 @@ void DeepConvLayerBase::setupNetworkPolygons(VAO *vao) {
     if ((kernel_ & 1) == 0) {
         THROW_EXCEPTION_ARGS(FynException,"Unsupported window size");
     } else {
-        for (int w = -((kernel_ - 1) / 2) ; w <= ((kernel_- 1 ) / 2); w++) {            // currently only odd window sizes are supported
-            std::vector<DeepTiler::Tile> tiles = tiler_->createInputTiles(0,w*dilation_[1]);
-            int offset = (w + ((kernel_ - 1) / 2))*tiler_->numInputTiles()*4;
+        for (int w = -((kernel_ - 1) / 2) ; w <= ((kernel_- 1 ) / 2); w++) {            // currently only odd kernel sizes are supported
+            std::vector<DeepTiler::Tile> tiles = tiler_->createInputTiles(0, w * dilation_[1]);
+            int offset = (w + ((kernel_ - 1) / 2)) * tiler_->numInputTiles() * 4;
             for (DeepTiler::Tile & tile : tiles) {
                 tile.toDisplacement(defex,texdata,offset);
                 tile.lowClamp(texdata, offset+2);

@@ -122,7 +122,7 @@ std::vector<BufferSpec> Deep2ShallowLayer::getRequiredOutputBuffers() const {
     for (int i=0; i < outputChannels_; i += PIXEL_PACKING) {
         result.emplace_back(channel++, 0, viewport_[0], viewport_[1],
                             TEXTURE_IFORMAT_4, TEXTURE_FORMAT_4, TEXTURE_TYPE_DEFAULT,
-                            BufferSpec::FUNCTION_DEST);
+                            BufferSpec::FUNCTION_DEST, std::min(outputChannels_-i, PIXEL_PACKING));
     }
     return result;
 }

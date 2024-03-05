@@ -30,8 +30,14 @@
 #error This file should not be compiled
 #endif
 
-namespace fyusion {
-namespace opengl {
+static PFNEGLQUERYDEVICEATTRIBEXTPROC eglQueryDeviceAttribEXT = nullptr;
+static PFNEGLQUERYDEVICESTRINGEXTPROC eglQueryDeviceStringEXT = nullptr;
+static PFNEGLQUERYDEVICESEXTPROC eglQueryDevicesEXT = nullptr;
+static PFNEGLQUERYDISPLAYATTRIBEXTPROC eglQueryDisplayAttribEXT = nullptr;
+static PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT = nullptr;
+
+namespace fyusion::opengl {
+
 //-------------------------------------- Local Definitions -----------------------------------------
 
 #ifdef ANDROID
@@ -39,6 +45,8 @@ namespace opengl {
 #else
 #define ES3BIT EGL_OPENGL_ES3_BIT
 #endif
+
+static bool initEGLExtensions();
 
 static const EGLint displayConfig16Bit[] = {
     EGL_RENDERABLE_TYPE, ES3BIT,
@@ -184,13 +192,47 @@ bool GLContext::isCurrent() const {
  * @copydoc GLContextInterface::init()
  */
 void GLContext::init() {
+    const int MAX_DEVICES = 8;
     EGLint major, minor, configs;
-
-    display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    if (!display_) THROW_EXCEPTION_ARGS(GLException,"Cannot get EGL display");
-    if (!eglInitialize(display_,&major,&minor)){
-        EGLint err = eglGetError();
-	    THROW_EXCEPTION_ARGS(GLException,"Cannot init EGL display: 0x%X", err);
+    EGLDeviceEXT eglDevices[MAX_DEVICES];
+    EGLint numdevs;
+    // TODO (mw) check if this works under Android
+    EGLDisplay display = EGL_NO_DISPLAY;
+    if (!initEGLExtensions()) {
+        display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+        if (!eglInitialize(display_, &major, &minor)) {
+            THROW_EXCEPTION_ARGS(GLException, "Cannot initialize EGL subsystem");
+        }
+    } else {
+        // ------------------------------------------------------------------
+        // Iterate through EGL backends, assuming that the "fastest" ones
+        // are first in the list...
+        // ------------------------------------------------------------------
+        eglQueryDevicesEXT(MAX_DEVICES, eglDevices, &numdevs);
+        for (EGLint i = 0; i < numdevs ; i++) {
+            display = eglGetPlatformDisplayEXT(EGL_PLATFORM_DEVICE_EXT, eglDevices[i], 0);
+            if (display != EGL_NO_DISPLAY) {
+                if (const char *vendor = eglQueryDeviceStringEXT(eglDevices[i], EGL_VENDOR); vendor) {
+                    // TODO (mw) filter by vendor
+                }
+#ifdef EGL_RENDERER_EXT
+                if (const char *render = eglQueryDeviceStringEXT(eglDevices[i], EGL_RENDERER_EXT); render) {
+                    // TODO (mw) filter by renderer
+                }
+#endif
+                // --------------------------------------------------------------
+                // If we found a display, try to use it, break out of the loop on
+                // success
+                // --------------------------------------------------------------
+                if (eglInitialize(display, &major, &minor)) {
+                    display_ = display;
+                    break;
+                }
+            }
+        }
+    }
+    if (display_ == EGL_NO_DISPLAY) {
+        THROW_EXCEPTION_ARGS(GLException, "Unable to open any EGL display");
     }
     bool success = false;
     for (int i=0; i < 3; i++) {
@@ -396,9 +438,25 @@ GLContext::GLContext(EGLContext ctx, int idx, fyusenet::GfxContextManager * mgr)
     GLContextInterface(idx, 0), context_(ctx), manager_(mgr) {
 }
 
+/**
+ * @brief Initialize EGL extensions that are required for operation
+ */
+bool initEGLExtensions() {
+    // TODO (mw) check if this works under Android
+    if (eglQueryDeviceAttribEXT == nullptr) {
+        eglQueryDeviceAttribEXT = (PFNEGLQUERYDEVICEATTRIBEXTPROC)eglGetProcAddress("eglQueryDeviceAttribEXT");
+        eglQueryDeviceStringEXT = (PFNEGLQUERYDEVICESTRINGEXTPROC)eglGetProcAddress("eglQueryDeviceStringEXT");
+        eglQueryDevicesEXT = (PFNEGLQUERYDEVICESEXTPROC)eglGetProcAddress("eglQueryDevicesEXT");
+        eglQueryDisplayAttribEXT = (PFNEGLQUERYDISPLAYATTRIBEXTPROC)eglGetProcAddress("eglQueryDisplayAttribEXT");
+        eglGetPlatformDisplayEXT = (PFNEGLGETPLATFORMDISPLAYEXTPROC)eglGetProcAddress("eglGetPlatformDisplayEXT");
+        if (!eglQueryDeviceAttribEXT || !eglQueryDeviceStringEXT || !eglQueryDevicesEXT || !eglQueryDisplayAttribEXT ||
+            !eglGetPlatformDisplayEXT) return false;
+    }
+    return true;
+}
 
-} // opengl namespace
-} // fyusion namespace
+} // fyusion::opengl namespace
+
 
 #endif
 // vim: set expandtab ts=4 sw=4:

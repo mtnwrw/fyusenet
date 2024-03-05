@@ -110,10 +110,12 @@ void Shallow2DeepLayer::cleanup() {
 std::vector<BufferSpec> Shallow2DeepLayer::getRequiredInputBuffers() const {
     std::vector<BufferSpec> result;
     int channel = 0;
-    if (inputChannels_ < PIXEL_PACKING) {
+    if (inputChannels_ <= PIXEL_PACKING) {
+        // NOTE (mw) technically this type of layer is not needed for this case, as deep format
+        // and shallow format are the same here, exception would be if padding has to be added
         // for input textures, we support textures with less than 4 channels (might be from upload)
         auto format = BufferSpec::formatByChannels(inputChannels_, TEXTURE_TYPE_DEFAULT);
-        result.emplace_back(channel++, 0, width_+2*inputPadding_, height_+2*inputPadding_,
+        result.emplace_back(channel++, 0, width_ + 2*inputPadding_, height_ + 2*inputPadding_,
                             format.first, format.second, TEXTURE_TYPE_DEFAULT,
                             BufferSpec::FUNCTION_SOURCE, inputChannels_);
     } else {
@@ -122,7 +124,7 @@ std::vector<BufferSpec> Shallow2DeepLayer::getRequiredInputBuffers() const {
             result.emplace_back(channel++, 0,
                                 width_ + 2*inputPadding_, height_ + 2*inputPadding_,
                                 TEXTURE_IFORMAT_4,TEXTURE_FORMAT_4,TEXTURE_TYPE_DEFAULT,
-                                BufferSpec::FUNCTION_SOURCE);
+                                BufferSpec::FUNCTION_SOURCE, std::min(rem, PIXEL_PACKING));
             rem -= PIXEL_PACKING;
         }
     }

@@ -129,7 +129,7 @@ std::vector<BufferSpec> ConcatLayer::getRequiredInputBuffers() const {
             result.push_back(BufferSpec(channel++, connindex, width_ + 2*inputPadding_,
                                         height_ + 2*inputPadding_,
                                         TEXTURE_IFORMAT_4, TEXTURE_FORMAT_4, TEXTURE_TYPE_DEFAULT,
-                                        BufferSpec::CONCAT_SOURCE).interpolation(BufferSpec::interp::ANY));
+                                        BufferSpec::CONCAT_SOURCE, std::min(rem, PIXEL_PACKING)).interpolation(BufferSpec::interp::ANY));
             rem -= PIXEL_PACKING;
         }
         connindex++;
@@ -148,7 +148,7 @@ std::vector<BufferSpec> ConcatLayer::getRequiredOutputBuffers() const {
     while (rem > 0) {
         result.push_back(BufferSpec(channel++, 0, viewport_[0], viewport_[1],
                                     TEXTURE_IFORMAT_4,TEXTURE_FORMAT_4,TEXTURE_TYPE_DEFAULT,
-                                    BufferSpec::CONCAT_DEST).passThrough(!consolidationRender_).interpolation(BufferSpec::interp::ANY));
+                                    BufferSpec::CONCAT_DEST, std::min(rem, PIXEL_PACKING)).passThrough(!consolidationRender_).interpolation(BufferSpec::interp::ANY));
         rem -= PIXEL_PACKING;
     }
     return result;

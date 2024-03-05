@@ -51,7 +51,6 @@ class DeepConvLayerNxN : public DeepConvLayerBase {
     // ------------------------------------------------------------------------
     // Non-public methods
     // ------------------------------------------------------------------------
-    void setupNetworkPolygons(VAO *vao) override;
     void compileConvolutionShaders(const char *preproc) override;
     unistateptr initShader(programptr shader, int horizOffset, int kernelOffset, int kernelY);
     void partialRender();

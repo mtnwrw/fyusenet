@@ -71,14 +71,14 @@ std::vector<BufferSpec> AddSubLayer::getRequiredInputBuffers() const {
             auto format = BufferSpec::formatByChannels(inputChannels_, TEXTURE_TYPE_DEFAULT);
             result.emplace_back(channel++, port, width_+2*inputPadding_, height_ + 2*inputPadding_,
                                 format.first, format.second, TEXTURE_TYPE_DEFAULT,
-                                BufferSpec::FUNCTION_SOURCE);
+                                BufferSpec::FUNCTION_SOURCE, rem);
             if (port == 0) texturesPerPort_++;
         } else {
             while (rem > 0) {
                 result.emplace_back(channel++, port,
                                     width_ + 2*inputPadding_, height_ + 2*inputPadding_,
                                     TEXTURE_IFORMAT_4,TEXTURE_FORMAT_4,TEXTURE_TYPE_DEFAULT,
-                                    BufferSpec::FUNCTION_SOURCE);
+                                    BufferSpec::FUNCTION_SOURCE, std::min(rem, PIXEL_PACKING));
                 rem -= PIXEL_PACKING;
                 if (port == 0) texturesPerPort_++;
             }
