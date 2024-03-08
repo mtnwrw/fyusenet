@@ -91,7 +91,7 @@ class NeuralNetwork : public GfxContextTracker {
      */
     class AsyncAdapter {
      public:
-        AsyncAdapter() {}
+        AsyncAdapter() = default;
         /**
          * @brief Set callback function to be invoked when a new sequence number has been issued
          *
