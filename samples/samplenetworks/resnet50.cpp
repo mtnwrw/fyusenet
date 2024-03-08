@@ -155,7 +155,7 @@ void ResNet50::setInputBuffer(const float *data) {
         std::unique_lock<std::mutex> lck(uploadBufferLock_);
         uploadBufferAvail_.wait(lck, [this]() { return (uploadBusy_ == false) && (usedUploadBuffers_ < ASYNC_BUFFERS); });
         if (upload->getCPUInputBuffer()) {
-        buf = (upload->getCPUInputBuffer() == inBuffers_[0]) ? inBuffers_[1] : inBuffers_[0];
+            buf = (upload->getCPUInputBuffer() == inBuffers_[0]) ? inBuffers_[1] : inBuffers_[0];
         } else buf = inBuffers_[0];
         usedUploadBuffers_++;
         uploadBusy_ = true;
@@ -528,7 +528,24 @@ void ResNet50::connectLayers(fyusion::fyusenet::CompiledLayers & layers, fyusion
     bufMgr->connectLayers(layers[70], layers[72],0);               // GlobAvg70 -> GEMM72
     if (download_) {
         bufMgr->connectLayers(layers[72], layers[73],0);           // GEMM -> download
+#ifdef FYUSENET_MULTITHREADING
+        if (async_) {
+            auto * down = (gpu::deep::DeepDownloadLayer *)layers["download"];
+            assert(down);
+            std::vector<BufferSpec> specs = down->getRequiredOutputBuffers();
+            assert(specs.size() == 1);
+            BufferShape shape(specs[0].height_, specs[0].width_, specs[0].channels_, 0,
+                              BufferShape::type::FLOAT32, BufferShape::order::GPU_DEEP);
+            asyncDLBuffers_[0] = shape.createCPUBuffer();
+            asyncDLBuffers_[1] = shape.createCPUBuffer();
+            down->addCPUOutputBuffer(asyncDLBuffers_[0]);
+            down->addOutputConnection(0, nullptr, 0);
+        } else {
+            bufMgr->createCPUOutput(layers[73], true);
+        }
+#else
         bufMgr->createCPUOutput(layers[73], true);
+#endif
     } else {
         auto * last = dynamic_cast<gpu::GPULayerBase *>(layers[72]);
         std::vector<BufferSpec> out = last->getRequiredOutputBuffers();
@@ -566,7 +583,7 @@ void ResNet50::initializeWeights(fyusion::fyusenet::CompiledLayers & layers) {
 void ResNet50::internalDLCallback(uint64_t seqNo, fyusion::fyusenet::cpu::CPUBuffer *buffer, fyusion::fyusenet::AsyncLayer::state state) {
     using namespace fyusion::fyusenet;
     assert(engine_);
-    gpu::DownloadLayer * down = dynamic_cast<gpu::DownloadLayer *>(engine_->getLayers()["download"]);
+    auto * down = dynamic_cast<gpu::deep::DeepDownloadLayer *>(engine_->getLayers()["download"]);
     assert(down);
     // --------------------------------------------
     // Perform buffer swap...
