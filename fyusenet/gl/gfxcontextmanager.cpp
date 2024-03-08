@@ -189,12 +189,14 @@ fyusenet::GfxContextLink GfxContextManager::createMainContext(bool makeCurrent) 
 /**
  * @brief Create a new GL context on the manager-associated device that is sharing with an existing context
  *
- * @param ctx Link to context that is supposed to shared data with the newly created one
+ * @param ctx Link to context that is supposed to share data with the newly created one
  *
  * @return Link to context that shares resources with the supplied context
  *
- * This function will create a new GL context by "deriving" it from the supplied context link.
- * Deriving in our case means that the new context will have the supplied context being
+ * This function will create a new GL context by "deriving" it from the main context of the supplied
+ * context link. In case the supplied \p ctx is linking to a main context (i.e. a context that has
+ * not been derived from another context) then this context will be used directly.
+ * Deriving in our case means that the new context will have the supplied (main) context being
  * entered as a context to share resources with. It is best practice that if you want to create
  * several shared contexts, that you derive a set of subordinate contexts from a main context.
  *
@@ -212,7 +214,44 @@ fyusenet::GfxContextLink GfxContextManager::createMainContext(bool makeCurrent) 
  */
 fyusenet::GfxContextLink GfxContextManager::createDerived(const fyusenet::GfxContextLink& ctx) {
     if (!ctx.context_) THROW_EXCEPTION_ARGS(opengl::GLException,"Illegal (empty) context supplied");
-    const opengl::GLContext * context = static_cast<const opengl::GLContext *>(ctx.interface());
+    auto * context = dynamic_cast<const opengl::GLContext *>(ctx.interface());
+    assert(context);
+    int idx = context->derivedCounter_.fetch_add(1);
+    opengl::GLContext * derived = context->derive((int)contexts_.size(), idx);
+    assert(derived);
+    contexts_.push_back(derived);
+    return fyusenet::GfxContextLink(derived);
+}
+
+
+
+/**
+ * @brief Create a new GL context on the manager-associated device that is sharing with an existing context
+ *
+ * @param intf GLContextInterface of the context that is supposed to share data with the newly created one
+ *
+ * @return Link to context that shares resources with the supplied context
+ *
+ * This function will create a new GL context by "deriving" it from the supplied context interface.
+ * Deriving in our case means that the new context will have the supplied context being
+ * entered as a context to share resources with. It is best practice that if you want to create
+ * several shared contexts, that you derive a set of subordinate contexts from a main context.
+ *
+ * The main context serves as anchor for the derived context, such that the derived context is
+ * assigned the main context as its parent (see GLContextInterface::isDerivedFrom() and
+ * GLContextInterface::derivedIndex() ) and will be addressed by the parent and a derived
+ * index.
+ *
+ * @throws GLException on errors or in case an invalid context has been supplied to derive from.
+ *
+ * @note The newly created context will \b not be current to the calling thread.
+ * @note This function is not thread-safe.
+ *
+ * @see GLContextInterface::isDerivedFrom, GLContextInterface::derivedIndex
+ */
+fyusenet::GfxContextLink GfxContextManager::createDerived(const opengl::GLContextInterface * intf) {
+    if (!intf) THROW_EXCEPTION_ARGS(opengl::GLException,"Illegal (empty) context supplied");
+    auto * context = dynamic_cast<const opengl::GLContext *>(intf);
     assert(context);
     int idx = context->derivedCounter_.fetch_add(1);
     opengl::GLContext * derived = context->derive((int)contexts_.size(), idx);
