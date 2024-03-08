@@ -79,6 +79,7 @@ class GfxContextManager {
     fyusenet::GfxContextLink createMainContext(bool makeCurrent = true);
 #endif
     fyusenet::GfxContextLink createDerived(const fyusenet::GfxContextLink& ctx);
+    fyusenet::GfxContextLink createDerived(const opengl::GLContextInterface * intf);
     fyusenet::GfxContextLink getDerived(const fyusenet::GfxContextLink& ctx, int derivedIndex) const;
     void setupPBOPools(int readPoolSize, int writePoolSize);
     void setupTexturePool();

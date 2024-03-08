@@ -163,7 +163,8 @@ AsyncPool::GLThread AsyncPool::getDerivedContextThread(const fyusenet::GfxContex
     if ((threads_.size() + glThreads_.size()) >= HARD_MAX_THREADS) {
         THROW_EXCEPTION_ARGS(GLException, "Maximum number of threads (%d) reached and trying to create one more, something is not right", HARD_MAX_THREADS);
     }
-    fyusenet::GfxContextLink newctx = fyusenet::GfxContextManager::instance()->createDerived(ctx);
+    auto mgr = fyusenet::GfxContextManager::instance();
+    fyusenet::GfxContextLink newctx = mgr->createDerived(ctx.interface()->getMain());
     GLThreadImpl * newthread = new GLThreadImpl(newctx);
     glThreads_.emplace_back(newthread,1);
     entry & ent = glThreads_.back();
