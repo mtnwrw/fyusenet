@@ -23,11 +23,12 @@ else(APPLE)
     set(GL_SYS_DEPS glfw X11)
   elseif (USE_EGL)
     # Android / EGL stuff
-    if (ANDROID)
-      set(GL_SYS_DEPS EGL GLESv3)
-    else()
-      set(GL_SYS_DEPS EGL GLESv2)
-    endif()
+    # fixme
+    #if (ANDROID)
+    #  set(GL_SYS_DEPS EGL GLESv3)
+    #else()
+    #  set(GL_SYS_DEPS EGL GLESv2)
+    #endif()
   else()
     # linux desktop GL
     set(GL_SYS_DEPS X11)

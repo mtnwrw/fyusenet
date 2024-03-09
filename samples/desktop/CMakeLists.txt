@@ -72,16 +72,13 @@ endif()
 
 
 if (APPLE)
-  # apple stuff
+  # apple stuff ?
 else(APPLE)
   if (USE_GLFW)
     set(GL_SYS_DEPS glfw X11)
-  elseif (USE_EGL)
-    # EGL stuff
-    set(GL_SYS_DEPS EGL GLESv2)
   elseif (WIN32)
     set(GL_SYS_DEPS "")
-  else()
+  elseif(UNIX AND NOT USE_EGL)
     # linux desktop GL
     set(GL_SYS_DEPS X11)
   endif()

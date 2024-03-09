@@ -60,21 +60,14 @@ configure_file(../data/butterfly_512x624.jpg ${CMAKE_CURRENT_BINARY_DIR}/butterf
 #----------------------------------------------------------------------------------
 
 if (APPLE)
-  # Apple stuff
+  # Apple stuff ?
 else(APPLE)
   if (USE_GLFW)
     set(GL_SYS_DEPS glfw X11)
-  elseif (USE_EGL)
-    # Android / EGL stuff
-    if (ANDROID)
-      set(GL_SYS_DEPS EGL GLESv3)
-    else()
-      set(GL_SYS_DEPS EGL GLESv2)
-    endif()
   elseif(WIN32)
     # MS Windows
     set(GL_SYS_DEPS "")
-  else()
+  elseif(UNIX AND NOT USE_EGL)
     # Linux desktop GL / GLX
     set(GL_SYS_DEPS X11)
   endif()

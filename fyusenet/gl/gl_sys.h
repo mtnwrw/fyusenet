@@ -32,16 +32,14 @@
 #endif
 
 #if defined(FYUSENET_USE_EGL)
-// headers for Android and/or GLES
+// headers for Android and/or EGL/GLES
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <GLES/gl.h>
-#include <GLES/glext.h>
 #include <GLES3/gl3.h>
-//#include <GLES3/gl3ext.h>
-#ifndef ANDROID
-#include <GLES3/gl32.h>
+#ifdef FYUSENET_USE_GLES_31
+#include <GLES3/gl31.h>
 #endif
+#include <GLES2/gl2ext.h>
 #endif
 
 #if defined(__linux__) && !defined(FYUSENET_USE_EGL)

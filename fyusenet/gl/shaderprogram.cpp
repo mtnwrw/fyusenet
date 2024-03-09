@@ -94,7 +94,7 @@ void ShaderProgram::log() const {
             if (shader->getType() == GL_FRAGMENT_SHADER) shader->log();
         }
     }
-#if !defined(__APPLE__) && !defined(ANDROID) && !defined(FYUSENET_USE_WEBGL)
+#if (!defined(__APPLE__) && !defined(FYUSENET_USE_EGL) && !defined(FYUSENET_USE_WEBGL)) || defined(FYUSENET_USE_GLES_31)
     if (hasCompute_) {
         FNLOGD("Compute Shader:");
         for (shaderptr shader : shaders_) {
@@ -122,7 +122,7 @@ void ShaderProgram::addShader(shaderptr shader) {
             case GL_VERTEX_SHADER:
                 hasVertex_ = true;
                 break;
-#if !defined(__APPLE__) && !defined(ANDROID) && !defined(FYUSENET_USE_WEBGL)
+#if (!defined(__APPLE__) && !defined(FYUSENET_USE_EGL) && !defined(FYUSENET_USE_WEBGL)) || defined(FYUSENET_USE_GLES_31)
             case GL_COMPUTE_SHADER:
                 hasCompute_ = true;
                 break;
