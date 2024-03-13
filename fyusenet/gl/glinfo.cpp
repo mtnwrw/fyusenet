@@ -583,13 +583,6 @@ void GLInfo::printInfo() {
         FNLOGI("  (NO COMPUTE SHADER SUPPORT)");
     }
 #endif
-#if defined(GL_EXT_texture_buffer)
-    if ((GLInfo::getVersion() >= GLES_3_2)||
-        ((GLInfo::getVersion() < GLES_2_0)&&(GLInfo::getVersion()>=GL_3_1))) {
-        glGetIntegerv(GL_MAX_TEXTURE_BUFFER_SIZE,&data);
-        FNLOGI("GL_MAX_TEXTURE_BUFFER_SIZE: %d",data);
-    }
-#endif
     FNLOGI("Extensions:");
     char buf[256];
     const char *eptr = instance_.extensions_.c_str();
